@@ -1,4 +1,4 @@
-:- module(Agendamento, [agendar_compromisso/4, salvar_compromissos/0]).
+:- module(Agendamento, [agendar_compromisso/4, salvar_compromissos/0, desalocar/4]).
 :- use_module(library(csv)).
 :- dynamic compromisso/5.
 
@@ -6,7 +6,7 @@
 % Carrega os compromissos a partir de um arquivo CSV existente
 carregar_compromissos :-
     limpar_banco_compromissos,
-    csv_read_file('../../Data/agendamentos.csv', Rows, [functor(compromisso), arity(5)]),
+    csv_read_file('./Data/agendamentos.csv', Rows, [functor(compromisso), arity(5)]),
     maplist(processar_compromisso, Rows).
 
 % Limpa o banco de dados de compromissos
