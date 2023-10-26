@@ -15,7 +15,6 @@ criarEvento(Nome, IdInstituicao, IdLocal, IdAgendamento, Inscritos, Capacidade, 
     ;
 
         createEvento(Nome, IdInstituicao, IdLocal, IdAgendamento, Inscritos, Capacidade, Vagas, Evento),
-        writeln(Evento),
         saveEvento(Evento),
         agendar_compromisso(IdLocal, Data, Horario, Matricula)
         ).
