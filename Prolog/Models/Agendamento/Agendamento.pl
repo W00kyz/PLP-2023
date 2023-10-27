@@ -26,33 +26,25 @@ read_lines(Stream, [Line | Rest]) :-
 processar_linha(Line) :-
     atomic_list_concat(SplitLine, ',', Line),
     maplist(atom_string, SplitLine, [IDLocalStr, DataStr, HorarioStr, ResponsavelStr | ListaEsperaStr]),
-
+    
     atom_number(IDLocalStr, IDLocal),
     atom_string(Data, DataStr),
     atom_string(Horario, HorarioStr),
     atom_string(Responsavel, ResponsavelStr),
-
+    
     (   ListaEsperaStr = [""]
     ->  ListaEspera = []
-    ;   strings_concatenadas(ListaEsperaStrConcatenada, ',', ListaEsperaStr),
-        atomic_list_concat(Atoms, ',', ListaEsperaStrConcatenada),
-        maplist(atom_string, Atoms, ListaEspera),
-        include(\=(''), ListaEspera, ListaEspera)
+    ;   atomic_list_concat(ListaEsperaStr, ',', ListaEsperaStrConcatenada),
+        split_string(ListaEsperaStrConcatenada, ",", "", ListaEsperaStr),
+        strings_para_atomos(ListaEsperaStr, ListaEspera)
     ),
     assert(compromisso(IDLocal, Data, Horario, Responsavel, ListaEspera)).
-
 
 % Converter uma lista de strings em uma lista de átomos
 strings_para_atomos([], []).
 strings_para_atomos([String | Resto], [Atomo | AtomosResto]) :-
     atom_string(Atomo, String),
     strings_para_atomos(Resto, AtomosResto).
-
-% Concatenar átomos em uma lista com um separador
-strings_concatenadas(String, Separador, Lista) :-
-    strings_para_atomos(Lista, Atomos),
-    atomic_list_concat(Atomos, Separador, String).
-
 
 % Salva os compromissos no arquivo CSV
 salvar_compromissos :-
@@ -75,8 +67,20 @@ format_compromisso_line(Stream, compromisso(ID, Data, Horario, Responsavel, List
     writeln(Stream, Line).
 
 %-------------------Agendamestos------------------------
+% Verifica se o usuário já não agendou o horário, estando como responsavel
+agendar_compromisso(IDLocal, Data, Horario, NewResponsavel) :-
+    compromisso(IDLocal, Data, Horario, NewResponsavel, _),
+    write('Compromisso já agendado, usuário é o responsável!'), nl,!.
+
+% Verifica se o usuário já não agendou o horário, estando na lista de espera
+agendar_compromisso(IDLocal, Data, Horario, NewResponsavel) :-
+    compromisso(IDLocal, Data, Horario, _, ListaEspera),
+    meu_member(NewResponsavel, ListaEspera),
+    write('Compromisso já agendado, usuário na lista de espera!'), nl,!.
+
 % Adiciona um novo compromisso à agenda com lista de espera ordenada por matrícula
 agendar_compromisso(IDLocal, Data, Horario, NewResponsavel) :-
+    \+ compromisso(IDLocal, Data, Horario, NewResponsavel, _),
     compromisso(IDLocal, Data, Horario, Responsavel, ListaEspera),
     \+ meu_member(NewResponsavel, ListaEspera),
     inserir_ordenado_matricula(NewResponsavel, ListaEspera, NovaListaEspera),
@@ -126,22 +130,16 @@ desalocar(IDLocal, Data, Horario, Responsavel) :-
 % Remove o usuário da lista de espera se ele não for o responsável
 desalocar(IDLocal, Data, Horario, Usuario) :-
     compromisso(IDLocal, Data, Horario, Responsavel, ListaEspera),
-    atomo_para_string(Usuario, UsuarioString),
-    meu_member(UsuarioString, ListaEspera),
-    remover(UsuarioString ,ListaEspera, NovaListaEspera),
+    meu_member(Usuario, ListaEspera),
+    subtract(ListaEspera, [Usuario], NovaListaEspera),
     retract(compromisso(IDLocal, Data, Horario, Responsavel, ListaEspera)),
     assert(compromisso(IDLocal, Data, Horario, Responsavel, NovaListaEspera)),
     salvar_compromissos,
     write('Usuário removido da lista de espera com sucesso!'), nl.
 
-% Converte um átomo em uma string
-atomo_para_string(Atom, String) :-
-    atom_string(Atom, String).
-
 % Verifica se um elemento está na lista
-meu_member(_, []) :- false.
 meu_member(X, [X|_]).
-meu_member(X, [Y|T]) :- meu_member(X, T).
+meu_member(X, [_|T]) :- meu_member(X, T).
 
 % Remover elemento da lista
 remover(X, [X|C], C):-!.
